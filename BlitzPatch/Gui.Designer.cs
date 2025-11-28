@@ -35,12 +35,36 @@ namespace BlitzPatch
             this.landingStartButton = new System.Windows.Forms.Button();
             this.landingTitleLabel = new System.Windows.Forms.Label();
             this.unitPanel = new System.Windows.Forms.Panel();
+            this.saveButton = new System.Windows.Forms.Button();
+            this.saveAsButton = new System.Windows.Forms.Button();
+            this.reloadButton = new System.Windows.Forms.Button();
+            this.backButton = new System.Windows.Forms.Button();
+            this.exportJsonButton = new System.Windows.Forms.Button();
+            this.factionFilterCombo = new System.Windows.Forms.ComboBox();
+            this.factionFilterLabel = new System.Windows.Forms.Label();
+            this.editorTabControl = new System.Windows.Forms.TabControl();
+            this.jsonTabPage = new System.Windows.Forms.TabPage();
+            this.jsonEditorTextBox = new System.Windows.Forms.TextBox();
+            this.unitsTabPage = new System.Windows.Forms.TabPage();
+            this.syncUnitsButton = new System.Windows.Forms.Button();
+            this.deleteUnitButton = new System.Windows.Forms.Button();
+            this.editUnitButton = new System.Windows.Forms.Button();
+            this.addUnitButton = new System.Windows.Forms.Button();
+            this.nextIdLabel = new System.Windows.Forms.Label();
+            this.unitsDataGridView = new System.Windows.Forms.DataGridView();
+            this.summaryTextBox = new System.Windows.Forms.TextBox();
+            this.profileSourceLabel = new System.Windows.Forms.Label();
+            this.listBoxRecords = new System.Windows.Forms.ListBox();
             this.landingPanel.SuspendLayout();
+            this.unitPanel.SuspendLayout();
+            this.editorTabControl.SuspendLayout();
+            this.jsonTabPage.SuspendLayout();
+            this.unitsTabPage.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.unitsDataGridView)).BeginInit();
             this.SuspendLayout();
             // 
             // landingPanel
             // 
-            this.landingPanel.Controls.Add(this.unitPanel);
             this.landingPanel.Controls.Add(this.button1);
             this.landingPanel.Controls.Add(this.textBox1);
             this.landingPanel.Controls.Add(this.label1);
@@ -49,7 +73,7 @@ namespace BlitzPatch
             this.landingPanel.Dock = System.Windows.Forms.DockStyle.Fill;
             this.landingPanel.Location = new System.Drawing.Point(0, 0);
             this.landingPanel.Name = "landingPanel";
-            this.landingPanel.Size = new System.Drawing.Size(390, 288);
+            this.landingPanel.Size = new System.Drawing.Size(640, 480);
             this.landingPanel.TabIndex = 0;
             // 
             // button1
@@ -100,24 +124,258 @@ namespace BlitzPatch
             // 
             // unitPanel
             // 
-            this.unitPanel.Location = new System.Drawing.Point(283, 272);
+            this.unitPanel.Controls.Add(this.saveAsButton);
+            this.unitPanel.Controls.Add(this.factionFilterLabel);
+            this.unitPanel.Controls.Add(this.factionFilterCombo);
+            this.unitPanel.Controls.Add(this.exportJsonButton);
+            this.unitPanel.Controls.Add(this.saveButton);
+            this.unitPanel.Controls.Add(this.reloadButton);
+            this.unitPanel.Controls.Add(this.backButton);
+            this.unitPanel.Controls.Add(this.editorTabControl);
+            this.unitPanel.Controls.Add(this.listBoxRecords);
+            this.unitPanel.Controls.Add(this.summaryTextBox);
+            this.unitPanel.Controls.Add(this.profileSourceLabel);
+            this.unitPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.unitPanel.Location = new System.Drawing.Point(0, 0);
             this.unitPanel.Name = "unitPanel";
-            this.unitPanel.Size = new System.Drawing.Size(390, 288);
-            this.unitPanel.TabIndex = 1;
+            this.unitPanel.Size = new System.Drawing.Size(640, 480);
+            this.unitPanel.TabIndex = 2;
             this.unitPanel.Visible = false;
+            // 
+            // profileSourceLabel
+            // 
+            this.profileSourceLabel.AutoSize = true;
+            this.profileSourceLabel.Location = new System.Drawing.Point(10, 10);
+            this.profileSourceLabel.Name = "profileSourceLabel";
+            this.profileSourceLabel.Size = new System.Drawing.Size(117, 13);
+            this.profileSourceLabel.TabIndex = 0;
+            this.profileSourceLabel.Text = "No profile loaded yet.";
+            // 
+            // summaryTextBox
+            // 
+            this.summaryTextBox.Location = new System.Drawing.Point(249, 39);
+            this.summaryTextBox.Multiline = true;
+            this.summaryTextBox.Name = "summaryTextBox";
+            this.summaryTextBox.ReadOnly = true;
+            this.summaryTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.summaryTextBox.Size = new System.Drawing.Size(378, 108);
+            this.summaryTextBox.TabIndex = 3;
+            // 
+            // listBoxRecords
+            // 
+            this.listBoxRecords.FormattingEnabled = true;
+            this.listBoxRecords.HorizontalScrollbar = true;
+            this.listBoxRecords.Location = new System.Drawing.Point(13, 39);
+            this.listBoxRecords.Name = "listBoxRecords";
+            this.listBoxRecords.Size = new System.Drawing.Size(230, 108);
+            this.listBoxRecords.TabIndex = 4;
+            this.listBoxRecords.SelectedIndexChanged += new System.EventHandler(this.listBoxRecords_SelectedIndexChanged);
+            // 
+            // editorTabControl
+            // 
+            this.editorTabControl.Controls.Add(this.jsonTabPage);
+            this.editorTabControl.Controls.Add(this.unitsTabPage);
+            this.editorTabControl.Location = new System.Drawing.Point(13, 155);
+            this.editorTabControl.Name = "editorTabControl";
+            this.editorTabControl.SelectedIndex = 0;
+            this.editorTabControl.Size = new System.Drawing.Size(614, 250);
+            this.editorTabControl.TabIndex = 5;
+            // 
+            // jsonTabPage
+            // 
+            this.jsonTabPage.Controls.Add(this.jsonEditorTextBox);
+            this.jsonTabPage.Location = new System.Drawing.Point(4, 22);
+            this.jsonTabPage.Name = "jsonTabPage";
+            this.jsonTabPage.Padding = new System.Windows.Forms.Padding(3);
+            this.jsonTabPage.Size = new System.Drawing.Size(606, 224);
+            this.jsonTabPage.TabIndex = 0;
+            this.jsonTabPage.Text = "Raw JSON";
+            this.jsonTabPage.UseVisualStyleBackColor = true;
+            // 
+            // jsonEditorTextBox
+            // 
+            this.jsonEditorTextBox.AcceptsReturn = true;
+            this.jsonEditorTextBox.AcceptsTab = true;
+            this.jsonEditorTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.jsonEditorTextBox.Location = new System.Drawing.Point(3, 3);
+            this.jsonEditorTextBox.Multiline = true;
+            this.jsonEditorTextBox.Name = "jsonEditorTextBox";
+            this.jsonEditorTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Both;
+            this.jsonEditorTextBox.ShortcutsEnabled = true;
+            this.jsonEditorTextBox.Size = new System.Drawing.Size(600, 218);
+            this.jsonEditorTextBox.TabIndex = 0;
+            this.jsonEditorTextBox.WordWrap = false;
+            // 
+            // unitsTabPage
+            // 
+            this.unitsTabPage.Controls.Add(this.syncUnitsButton);
+            this.unitsTabPage.Controls.Add(this.deleteUnitButton);
+            this.unitsTabPage.Controls.Add(this.editUnitButton);
+            this.unitsTabPage.Controls.Add(this.addUnitButton);
+            this.unitsTabPage.Controls.Add(this.nextIdLabel);
+            this.unitsTabPage.Controls.Add(this.unitsDataGridView);
+            this.unitsTabPage.Location = new System.Drawing.Point(4, 22);
+            this.unitsTabPage.Name = "unitsTabPage";
+            this.unitsTabPage.Padding = new System.Windows.Forms.Padding(3);
+            this.unitsTabPage.Size = new System.Drawing.Size(606, 224);
+            this.unitsTabPage.TabIndex = 1;
+            this.unitsTabPage.Text = "Units";
+            this.unitsTabPage.UseVisualStyleBackColor = true;
+            // 
+            // syncUnitsButton
+            // 
+            this.syncUnitsButton.Location = new System.Drawing.Point(454, 193);
+            this.syncUnitsButton.Name = "syncUnitsButton";
+            this.syncUnitsButton.Size = new System.Drawing.Size(146, 23);
+            this.syncUnitsButton.TabIndex = 5;
+            this.syncUnitsButton.Text = "Reload from JSON";
+            this.syncUnitsButton.UseVisualStyleBackColor = true;
+            this.syncUnitsButton.Click += new System.EventHandler(this.syncUnitsButton_Click);
+            // 
+            // deleteUnitButton
+            // 
+            this.deleteUnitButton.Location = new System.Drawing.Point(185, 193);
+            this.deleteUnitButton.Name = "deleteUnitButton";
+            this.deleteUnitButton.Size = new System.Drawing.Size(84, 23);
+            this.deleteUnitButton.TabIndex = 4;
+            this.deleteUnitButton.Text = "Delete";
+            this.deleteUnitButton.UseVisualStyleBackColor = true;
+            this.deleteUnitButton.Click += new System.EventHandler(this.deleteUnitButton_Click);
+            // 
+            // editUnitButton
+            // 
+            this.editUnitButton.Location = new System.Drawing.Point(95, 193);
+            this.editUnitButton.Name = "editUnitButton";
+            this.editUnitButton.Size = new System.Drawing.Size(84, 23);
+            this.editUnitButton.TabIndex = 3;
+            this.editUnitButton.Text = "Edit";
+            this.editUnitButton.UseVisualStyleBackColor = true;
+            this.editUnitButton.Click += new System.EventHandler(this.editUnitButton_Click);
+            // 
+            // addUnitButton
+            // 
+            this.addUnitButton.Location = new System.Drawing.Point(5, 193);
+            this.addUnitButton.Name = "addUnitButton";
+            this.addUnitButton.Size = new System.Drawing.Size(84, 23);
+            this.addUnitButton.TabIndex = 2;
+            this.addUnitButton.Text = "Add";
+            this.addUnitButton.UseVisualStyleBackColor = true;
+            this.addUnitButton.Click += new System.EventHandler(this.addUnitButton_Click);
+            // 
+            // nextIdLabel
+            // 
+            this.nextIdLabel.AutoSize = true;
+            this.nextIdLabel.Location = new System.Drawing.Point(2, 177);
+            this.nextIdLabel.Name = "nextIdLabel";
+            this.nextIdLabel.Size = new System.Drawing.Size(92, 13);
+            this.nextIdLabel.TabIndex = 1;
+            this.nextIdLabel.Text = "Next unit id: N/A";
+            // 
+            // unitsDataGridView
+            // 
+            this.unitsDataGridView.AllowUserToAddRows = false;
+            this.unitsDataGridView.AllowUserToDeleteRows = false;
+            this.unitsDataGridView.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.unitsDataGridView.Location = new System.Drawing.Point(5, 6);
+            this.unitsDataGridView.MultiSelect = false;
+            this.unitsDataGridView.Name = "unitsDataGridView";
+            this.unitsDataGridView.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
+            this.unitsDataGridView.Size = new System.Drawing.Size(595, 166);
+            this.unitsDataGridView.TabIndex = 0;
+            // 
+            // backButton
+            // 
+            this.backButton.Location = new System.Drawing.Point(13, 420);
+            this.backButton.Name = "backButton";
+            this.backButton.Size = new System.Drawing.Size(75, 23);
+            this.backButton.TabIndex = 4;
+            this.backButton.Text = "Back";
+            this.backButton.UseVisualStyleBackColor = true;
+            this.backButton.Click += new System.EventHandler(this.backButton_Click);
+            // 
+            // reloadButton
+            // 
+            this.reloadButton.Location = new System.Drawing.Point(346, 420);
+            this.reloadButton.Name = "reloadButton";
+            this.reloadButton.Size = new System.Drawing.Size(80, 23);
+            this.reloadButton.TabIndex = 7;
+            this.reloadButton.Text = "Reload";
+            this.reloadButton.UseVisualStyleBackColor = true;
+            this.reloadButton.Click += new System.EventHandler(this.reloadButton_Click);
+            // 
+            // saveButton
+            // 
+            this.saveButton.Location = new System.Drawing.Point(533, 420);
+            this.saveButton.Name = "saveButton";
+            this.saveButton.Size = new System.Drawing.Size(94, 23);
+            this.saveButton.TabIndex = 9;
+            this.saveButton.Text = "Save to LiteDB";
+            this.saveButton.UseVisualStyleBackColor = true;
+            this.saveButton.Click += new System.EventHandler(this.saveButton_Click);
+            // 
+            // saveAsButton
+            // 
+            this.saveAsButton.Location = new System.Drawing.Point(432, 420);
+            this.saveAsButton.Name = "saveAsButton";
+            this.saveAsButton.Size = new System.Drawing.Size(95, 23);
+            this.saveAsButton.TabIndex = 8;
+            this.saveAsButton.Text = "Save As...";
+            this.saveAsButton.UseVisualStyleBackColor = true;
+            this.saveAsButton.Click += new System.EventHandler(this.saveAsButton_Click);
+            // 
+            // exportJsonButton
+            // 
+            this.exportJsonButton.Location = new System.Drawing.Point(250, 420);
+            this.exportJsonButton.Name = "exportJsonButton";
+            this.exportJsonButton.Size = new System.Drawing.Size(90, 23);
+            this.exportJsonButton.TabIndex = 6;
+            this.exportJsonButton.Text = "Export JSON";
+            this.exportJsonButton.UseVisualStyleBackColor = true;
+            this.exportJsonButton.Click += new System.EventHandler(this.exportJsonButton_Click);
+            // 
+            // factionFilterCombo
+            // 
+            this.factionFilterCombo.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.factionFilterCombo.FormattingEnabled = true;
+            this.factionFilterCombo.Location = new System.Drawing.Point(345, 7);
+            this.factionFilterCombo.Name = "factionFilterCombo";
+            this.factionFilterCombo.Size = new System.Drawing.Size(167, 21);
+            this.factionFilterCombo.TabIndex = 2;
+            this.factionFilterCombo.SelectedIndexChanged += new System.EventHandler(this.factionFilterCombo_SelectedIndexChanged);
+            // 
+            // factionFilterLabel
+            // 
+            this.factionFilterLabel.AutoSize = true;
+            this.factionFilterLabel.Location = new System.Drawing.Point(249, 10);
+            this.factionFilterLabel.Name = "factionFilterLabel";
+            this.factionFilterLabel.Size = new System.Drawing.Size(90, 13);
+            this.factionFilterLabel.TabIndex = 11;
+            this.factionFilterLabel.Text = "UserFactionType";
             // 
             // Gui
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(390, 288);
+            this.ClientSize = new System.Drawing.Size(640, 480);
+            this.Controls.Add(this.unitPanel);
             this.Controls.Add(this.landingPanel);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.MaximizeBox = false;
+            this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             this.Name = "Gui";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "BlitzPatch";
             this.Load += new System.EventHandler(this.Gui_Load);
             this.landingPanel.ResumeLayout(false);
             this.landingPanel.PerformLayout();
+            this.unitPanel.ResumeLayout(false);
+            this.unitPanel.PerformLayout();
+            this.editorTabControl.ResumeLayout(false);
+            this.jsonTabPage.ResumeLayout(false);
+            this.jsonTabPage.PerformLayout();
+            this.unitsTabPage.ResumeLayout(false);
+            this.unitsTabPage.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.unitsDataGridView)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -131,5 +389,25 @@ namespace BlitzPatch
         private System.Windows.Forms.TextBox textBox1;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.Label profileSourceLabel;
+        private System.Windows.Forms.TextBox summaryTextBox;
+        private System.Windows.Forms.Button backButton;
+        private System.Windows.Forms.Button reloadButton;
+        private System.Windows.Forms.Button saveButton;
+        private System.Windows.Forms.ListBox listBoxRecords;
+        private System.Windows.Forms.Button exportJsonButton;
+        private System.Windows.Forms.ComboBox factionFilterCombo;
+        private System.Windows.Forms.Label factionFilterLabel;
+        private System.Windows.Forms.Button saveAsButton;
+        private System.Windows.Forms.TabControl editorTabControl;
+        private System.Windows.Forms.TabPage jsonTabPage;
+        private System.Windows.Forms.TextBox jsonEditorTextBox;
+        private System.Windows.Forms.TabPage unitsTabPage;
+        private System.Windows.Forms.Button syncUnitsButton;
+        private System.Windows.Forms.Button deleteUnitButton;
+        private System.Windows.Forms.Button editUnitButton;
+        private System.Windows.Forms.Button addUnitButton;
+        private System.Windows.Forms.Label nextIdLabel;
+        private System.Windows.Forms.DataGridView unitsDataGridView;
     }
 }

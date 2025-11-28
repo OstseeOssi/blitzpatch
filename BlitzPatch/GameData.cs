@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace BlitzPatch
 {
@@ -365,7 +367,63 @@ namespace BlitzPatch
                                                             "ww2_cp1_t3_4",
                                                             "ww2_cp2_t5_9",
                                                             "ww2_cp3_t7_1"
-                                                       };
+        };
+
+        public static readonly IReadOnlyDictionary<int, string> FactionLabels = new Dictionary<int, string>
+        {
+            { 0, "Allied" },
+            { 1, "Soviet" },
+            { 2, "Axis" }
+        };
+
+        public static string[] AllUnitsDistinct =>
+            units_ger
+                .Concat(units_sov)
+                .Concat(units_ald)
+                .Distinct()
+                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+        public class UserProfile
+        {
+            public List<UserProgress.Scenario> Scenarios { get; set; }
+            public List<UserProgress.VisitedTier> VisitedTiers { get; set; }
+            public List<UserProgress.FactionProgress> FactionProgress { get; set; }
+            public List<int> UnlockedTiers { get; set; }
+            public bool StartFirstBattle { get; set; }
+
+            [JsonPropertyName("PvEMissionProgress")]
+            public List<UserProgress.PvEMission> PvEMissionProgress { get; set; }
+
+            public List<UserProgress.Achievement> AchsInProgress { get; set; }
+            public List<string> AchsCompleted { get; set; }
+            public List<SideMission> SideMissions { get; set; }
+            public int Id { get; set; }
+            public string Name { get; set; }
+            public int CurrentTier { get; set; }
+            public DateTime FirstEnterTime { get; set; }
+            public DateTime LastLoginTime { get; set; }
+            public DateTime LastTwinkChangeTime { get; set; }
+            public DateTime LoginTime { get; set; }
+            public TimeSpan TimeInGame { get; set; }
+            public List<string> CsiHashs { get; set; }
+            public int LastPlayedFaction { get; set; }
+            public bool Aogas { get; set; }
+            public TimeSpan CummOnlineTime { get; set; }
+            public TimeSpan CummOfflineTime { get; set; }
+            public string NameToLower { get; set; }
+            public List<string> Friends { get; set; }
+            public List<string> Blacklist { get; set; }
+            public JsonElement? History { get; set; }
+        }
+
+        public class SideMission
+        {
+            public string SideMissionId { get; set; }
+            public int DifficultyLevel { get; set; }
+            public int LastResult { get; set; }
+            public bool CompletedOnce { get; set; }
+        }
         
         // data for a_1_j
         public class UserProgress
@@ -419,9 +477,16 @@ namespace BlitzPatch
             {
                 public string MissionId { get; set; }
                 public string CampaignId { get; set; }
+
+                [JsonPropertyName("IsMainObjectivesCompeted")]
                 public bool IsMainObjectivesCompleted { get; set; }
+
+                [JsonPropertyName("IsOptionalObjectivesCompeted")]
                 public bool IsOptionalObjectivesCompleted { get; set; }
+
+                [JsonPropertyName("IsChallengesCompeted")]
                 public bool IsChallengesCompleted { get; set; }
+
                 public int MaxAchievedStars { get; set; }
             }
 
@@ -449,6 +514,24 @@ namespace BlitzPatch
             {
 
             }
+        }
+
+        public class UserMapDocument
+        {
+            [JsonPropertyName("Units")]
+            public List<Unit> Units { get; set; } = new List<Unit>();
+
+            [JsonPropertyName("SupportsReserve")]
+            public List<Unit> SupportsReserve { get; set; } = new List<Unit>();
+
+            [JsonPropertyName("UserFactionType")]
+            public int? UserFactionType { get; set; }
+
+            [JsonPropertyName("NextId")]
+            public int? NextId { get; set; }
+
+            [JsonExtensionData]
+            public Dictionary<string, JsonElement> ExtraFields { get; set; } = new Dictionary<string, JsonElement>();
         }
 
         // data for maps
@@ -494,6 +577,221 @@ namespace BlitzPatch
             public double X { get; set; } = 0.0;
             public double Y { get; set; } = 0.0;
             public double Z { get; set; } = 0.0;
+        }
+
+        public static bool TryParseUserMap(string json, out UserMapDocument map, out string error)
+        {
+            map = null;
+            error = null;
+
+            try
+            {
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                map = JsonSerializer.Deserialize<UserMapDocument>(json, options);
+                if (map?.Units == null)
+                {
+                    map = map ?? new UserMapDocument();
+                    map.Units = map.Units ?? new List<Unit>();
+                }
+
+                if (map.SupportsReserve == null)
+                {
+                    map.SupportsReserve = new List<Unit>();
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                map = null;
+                return false;
+            }
+        }
+
+        public static string SerializeUserMap(UserMapDocument map, bool pretty)
+        {
+            if (map == null)
+            {
+                return string.Empty;
+            }
+
+            NormalizeUnitCollection(map);
+
+            var options = new JsonSerializerOptions
+            {
+                WriteIndented = pretty,
+                DefaultIgnoreCondition = JsonIgnoreCondition.Never
+            };
+
+            return JsonSerializer.Serialize(map, options);
+        }
+
+        private static void NormalizeUnitCollection(UserMapDocument map)
+        {
+            if (map.Units != null)
+            {
+                foreach (var unit in map.Units)
+                {
+                    EnsureUnitDefaults(unit);
+                }
+            }
+
+            if (map.SupportsReserve != null)
+            {
+                foreach (var unit in map.SupportsReserve)
+                {
+                    EnsureUnitDefaults(unit);
+                }
+            }
+        }
+
+        public static string BuildUserMapSummary(UserMapDocument map)
+        {
+            if (map == null)
+            {
+                return "No map data loaded.";
+            }
+
+            var factionLabel = map.UserFactionType.HasValue && FactionLabels.ContainsKey(map.UserFactionType.Value)
+                ? FactionLabels[map.UserFactionType.Value]
+                : "Unknown";
+
+            var units = map.Units?.Count ?? 0;
+            var supports = map.SupportsReserve?.Count ?? 0;
+            var maxId = Math.Max(map.Units?.Any() == true ? map.Units.Max(u => u.idOnServer) : 0,
+                                 map.SupportsReserve?.Any() == true ? map.SupportsReserve.Max(u => u.idOnServer) : 0);
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Faction: {factionLabel} ({map.UserFactionType?.ToString() ?? "n/a"})");
+            sb.AppendLine($"Units: {units}, Supports: {supports}");
+            sb.AppendLine($"NextId: {map.NextId?.ToString() ?? "n/a"}, Highest existing id: {maxId}");
+            return sb.ToString();
+        }
+
+        public static int? TryExtractUserFactionType(string json)
+        {
+            try
+            {
+                using (var doc = JsonDocument.Parse(json))
+                {
+                    if (doc.RootElement.TryGetProperty("UserFactionType", out var factionProp) &&
+                        factionProp.ValueKind == JsonValueKind.Number)
+                    {
+                        return factionProp.GetInt32();
+                    }
+                }
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return null;
+        }
+
+        private static void EnsureUnitDefaults(Unit unit)
+        {
+            if (unit == null)
+            {
+                return;
+            }
+
+            unit.unitOnMaps = unit.unitOnMaps ?? new UnitOnMaps();
+            unit.unitOnMaps.Unknown = unit.unitOnMaps.Unknown ?? new MapData();
+            unit.unitOnMaps.Early = unit.unitOnMaps.Early ?? new MapData();
+            unit.unitOnMaps.Middle = unit.unitOnMaps.Middle ?? new MapData();
+            unit.unitOnMaps.Late = unit.unitOnMaps.Late ?? new MapData();
+        }
+
+        public static bool TryParseUserProfile(string json, out UserProfile profile, out string error)
+        {
+            profile = null;
+            error = null;
+
+            try
+            {
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+
+                profile = JsonSerializer.Deserialize<UserProfile>(json, options);
+                return profile != null;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        public static bool TryNormalizeJson(string json, out string normalized, out string error)
+        {
+            normalized = null;
+            error = null;
+
+            try
+            {
+                using (var doc = JsonDocument.Parse(json))
+                {
+                    normalized = JsonSerializer.Serialize(doc.RootElement, new JsonSerializerOptions
+                    {
+                        WriteIndented = false
+                    });
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        public static string BuildUserProfileSummary(UserProfile profile)
+        {
+            if (profile == null)
+            {
+                return "No profile loaded.";
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Player: {profile.Name} (Id: {profile.Id})");
+            sb.AppendLine($"Current Tier: {profile.CurrentTier}, Last Played Faction: {profile.LastPlayedFaction}");
+            sb.AppendLine($"Scenarios: {profile.Scenarios?.Count ?? 0} listed, {profile.Scenarios?.Count(s => s.Complete) ?? 0} completed");
+            sb.AppendLine($"Visited tiers: {profile.VisitedTiers?.Count ?? 0}");
+            sb.AppendLine($"Unlocked tiers: {string.Join(", ", profile.UnlockedTiers ?? new List<int>())}");
+            sb.AppendLine($"PvE missions: {profile.PvEMissionProgress?.Count ?? 0}, achievements in progress: {profile.AchsInProgress?.Count ?? 0}, completed: {profile.AchsCompleted?.Count ?? 0}");
+            sb.AppendLine($"Side missions: {profile.SideMissions?.Count ?? 0}, StartFirstBattle: {profile.StartFirstBattle}");
+            sb.AppendLine($"Online: {profile.CummOnlineTime}, Offline: {profile.CummOfflineTime}, Time in game: {profile.TimeInGame}");
+            return sb.ToString();
+        }
+
+        public static string PrettyPrintJson(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return json;
+
+            try
+            {
+                using (var doc = JsonDocument.Parse(json))
+                {
+                    return JsonSerializer.Serialize(doc.RootElement, new JsonSerializerOptions
+                    {
+                        WriteIndented = true
+                    });
+                }
+            }
+            catch
+            {
+                // If formatting fails, just return the original text.
+                return json;
+            }
         }
     }
 
