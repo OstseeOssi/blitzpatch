@@ -18,6 +18,7 @@ namespace BlitzPatch
         private bool suppressRecordListEvent;
         private List<Db.UserDataRecord> loadedRecords = new List<Db.UserDataRecord>();
         private string[] allUnits = GameData.AllUnitsDistinct;
+        private static readonly Random Randomizer = new Random();
 
         private class FactionFilterOption
         {
@@ -387,6 +388,42 @@ namespace BlitzPatch
             }
         }
 
+        private int? GuessFactionForUnit(string unitId)
+        {
+            if (string.IsNullOrWhiteSpace(unitId))
+            {
+                return null;
+            }
+
+            if (GameData.units_ald.Contains(unitId))
+            {
+                return 0;
+            }
+
+            if (GameData.units_sov.Contains(unitId))
+            {
+                return 1;
+            }
+
+            if (GameData.units_ger.Contains(unitId))
+            {
+                return 2;
+            }
+
+            return null;
+        }
+
+        private int NextAvailableIdFrom(int start, HashSet<int> usedIds)
+        {
+            var candidate = Math.Max(start, 1);
+            while (usedIds.Contains(candidate))
+            {
+                candidate++;
+            }
+
+            return candidate;
+        }
+
         private string SuggestUnitId()
         {
             var pool = allUnits;
@@ -408,47 +445,87 @@ namespace BlitzPatch
 
         private bool TryEditUnit(GameData.Unit seed, out GameData.Unit edited)
         {
+            return TryEditUnit(seed, out edited, out _, out _, false);
+        }
+
+        private bool TryEditUnit(GameData.Unit seed, out GameData.Unit edited, out int quantity, out bool randomizePositionsSelected, bool allowMultipleInstances)
+        {
             edited = null;
+            quantity = 1;
+            randomizePositionsSelected = false;
             EnsureUnitDefaults(seed);
 
             using (var dialog = new Form())
             {
                 dialog.Text = "Unit Editor";
                 dialog.Width = 420;
-                dialog.Height = 360;
+                dialog.Height = allowMultipleInstances ? 440 : 400;
                 dialog.StartPosition = FormStartPosition.CenterParent;
                 dialog.FormBorderStyle = FormBorderStyle.FixedDialog;
                 dialog.MaximizeBox = false;
                 dialog.MinimizeBox = false;
 
-                var unitLabel = new Label { Text = "Unit id", Left = 10, Top = 15, AutoSize = true };
-                var unitCombo = new ComboBox
+                var techTreeLabel = new Label { Text = "Tech tree", Left = 10, Top = 15, AutoSize = true };
+                var techTreeCombo = new ComboBox
                 {
                     Left = 100,
                     Top = 10,
                     Width = 280,
                     DropDownStyle = ComboBoxStyle.DropDownList
                 };
-                unitCombo.Items.AddRange(allUnits);
-                var existingIndex = Array.IndexOf(allUnits, seed.id);
-                unitCombo.SelectedIndex = existingIndex >= 0 ? existingIndex : 0;
+                techTreeCombo.Items.Add(new FactionFilterOption { Label = "All", Value = null });
+                techTreeCombo.Items.Add(new FactionFilterOption { Label = "Allied", Value = 0 });
+                techTreeCombo.Items.Add(new FactionFilterOption { Label = "Soviet", Value = 1 });
+                techTreeCombo.Items.Add(new FactionFilterOption { Label = "Axis", Value = 2 });
 
-                var idLabel = new Label { Text = "idOnServer", Left = 10, Top = 50, AutoSize = true };
-                var idNumeric = new NumericUpDown
+                var unitLabel = new Label { Text = "Unit id", Left = 10, Top = 50, AutoSize = true };
+                var unitCombo = new ComboBox
                 {
                     Left = 100,
                     Top = 45,
+                    Width = 280,
+                    DropDownStyle = ComboBoxStyle.DropDownList
+                };
+
+                void RefreshUnitCombo()
+                {
+                    var selectedFaction = (techTreeCombo.SelectedItem as FactionFilterOption)?.Value;
+                    var pool = GetUnitPoolForFaction(selectedFaction);
+                    var previousSelection = unitCombo.SelectedItem?.ToString() ?? seed.id;
+                    unitCombo.BeginUpdate();
+                    unitCombo.Items.Clear();
+                    unitCombo.Items.AddRange(pool);
+                    var existingIndex = Array.IndexOf(pool, previousSelection);
+                    unitCombo.SelectedIndex = existingIndex >= 0 ? existingIndex : 0;
+                    unitCombo.EndUpdate();
+                }
+
+                var inferredFaction = GuessFactionForUnit(seed.id) ?? currentUserMap?.UserFactionType;
+                var preferredFactionOption = techTreeCombo.Items.Cast<object>()
+                    .OfType<FactionFilterOption>()
+                    .FirstOrDefault(o => o.Value == inferredFaction);
+                techTreeCombo.SelectedItem = preferredFactionOption ?? techTreeCombo.Items[0];
+                techTreeCombo.SelectedIndexChanged += (s, e) => RefreshUnitCombo();
+                RefreshUnitCombo();
+
+                var idLabel = new Label { Text = "idOnServer", Left = 10, Top = 85, AutoSize = true };
+                var idNumeric = new NumericUpDown
+                {
+                    Left = 100,
+                    Top = 80,
                     Width = 120,
                     Minimum = 1,
                     Maximum = 999999,
                     Value = seed.idOnServer > 0 ? seed.idOnServer : GetNextAvailableId()
                 };
 
-                var expLabel = new Label { Text = "Exp", Left = 10, Top = 80, AutoSize = true };
+                var quantityLabelTop = 115;
+                var expTop = allowMultipleInstances ? 150 : 115;
+                var expLabel = new Label { Text = "Exp", Left = 10, Top = expTop, AutoSize = true };
                 var expNumeric = new NumericUpDown
                 {
                     Left = 100,
-                    Top = 75,
+                    Top = expTop - 5,
                     Width = 120,
                     Minimum = 0,
                     Maximum = decimal.MaxValue,
@@ -457,24 +534,53 @@ namespace BlitzPatch
                     Value = (decimal)seed.exp
                 };
 
-                var expLvlLabel = new Label { Text = "Exp Level", Left = 10, Top = 110, AutoSize = true };
+                NumericUpDown quantityNumeric = null;
+                if (allowMultipleInstances)
+                {
+                    var quantityLabel = new Label { Text = "Quantity", Left = 10, Top = quantityLabelTop, AutoSize = true };
+                    quantityNumeric = new NumericUpDown
+                    {
+                        Left = 100,
+                        Top = quantityLabelTop - 5,
+                        Width = 120,
+                        Minimum = 1,
+                        Maximum = 999,
+                        Value = 1
+                    };
+
+                    dialog.Controls.Add(quantityLabel);
+                    dialog.Controls.Add(quantityNumeric);
+                }
+
+                var expLvlTop = expTop + 30;
+                var expLvlLabel = new Label { Text = "Exp Level", Left = 10, Top = expLvlTop, AutoSize = true };
                 var expLvlNumeric = new NumericUpDown
                 {
                     Left = 100,
-                    Top = 105,
+                    Top = expLvlTop - 5,
                     Width = 120,
                     Minimum = 0,
                     Maximum = 10,
                     Value = seed.expLvl
                 };
 
-                var mapLabel = new Label { Text = "unitOnMaps (JSON, optional)", Left = 10, Top = 140, AutoSize = true };
+                var mapLabelTop = expLvlTop + 30;
+                var mapLabel = new Label { Text = "unitOnMaps (JSON, optional)", Left = 10, Top = mapLabelTop, AutoSize = true };
+                var randomizePositions = new CheckBox
+                {
+                    Left = 10,
+                    Top = mapLabelTop + 20,
+                    Text = "Randomize Early/Middle/Late positions",
+                    AutoSize = true
+                };
+
+                var mapsTextTop = randomizePositions.Top + 25;
                 var mapsText = new TextBox
                 {
                     Left = 10,
-                    Top = 160,
+                    Top = mapsTextTop,
                     Width = 370,
-                    Height = 110,
+                    Height = 130,
                     Multiline = true,
                     ScrollBars = ScrollBars.Both,
                     WordWrap = false
@@ -489,13 +595,14 @@ namespace BlitzPatch
                     mapsText.Text = string.Empty;
                 }
 
+                var buttonsTop = mapsText.Top + mapsText.Height + 15;
                 var okButton = new Button
                 {
                     Text = "OK",
                     DialogResult = DialogResult.OK,
                     Left = 220,
                     Width = 75,
-                    Top = 280
+                    Top = buttonsTop
                 };
                 var cancelButton = new Button
                 {
@@ -503,21 +610,23 @@ namespace BlitzPatch
                     DialogResult = DialogResult.Cancel,
                     Left = 305,
                     Width = 75,
-                    Top = 280
+                    Top = buttonsTop
                 };
 
                 dialog.Controls.AddRange(new Control[]
                 {
+                    techTreeLabel, techTreeCombo,
                     unitLabel, unitCombo,
                     idLabel, idNumeric,
                     expLabel, expNumeric,
                     expLvlLabel, expLvlNumeric,
-                    mapLabel, mapsText,
+                    mapLabel, randomizePositions, mapsText,
                     okButton, cancelButton
                 });
 
                 dialog.AcceptButton = okButton;
                 dialog.CancelButton = cancelButton;
+                dialog.Height = buttonsTop + 110;
 
                 if (dialog.ShowDialog(this) != DialogResult.OK)
                 {
@@ -543,6 +652,12 @@ namespace BlitzPatch
                     }
                 }
 
+                if (randomizePositions.Checked)
+                {
+                    unitOnMaps = RandomizeUnitOnMaps(unitOnMaps);
+                    randomizePositionsSelected = true;
+                }
+
                 edited = new GameData.Unit
                 {
                     id = chosenId,
@@ -552,6 +667,7 @@ namespace BlitzPatch
                     unitOnMaps = unitOnMaps
                 };
 
+                quantity = allowMultipleInstances && quantityNumeric != null ? (int)quantityNumeric.Value : 1;
                 EnsureUnitDefaults(edited);
                 return true;
             }
@@ -573,6 +689,42 @@ namespace BlitzPatch
             unit.unitOnMaps.Middle = unit.unitOnMaps.Middle ?? new GameData.MapData();
             unit.unitOnMaps.Late = unit.unitOnMaps.Late ?? new GameData.MapData();
         }
+
+        private GameData.UnitOnMaps RandomizeUnitOnMaps(GameData.UnitOnMaps unitOnMaps)
+        {
+            if (unitOnMaps == null)
+            {
+                unitOnMaps = new GameData.UnitOnMaps();
+            }
+
+            unitOnMaps.Early = RandomizeMapData(new GameData.MapData());
+            unitOnMaps.Middle = RandomizeMapData(new GameData.MapData());
+            unitOnMaps.Late = RandomizeMapData(new GameData.MapData());
+            return unitOnMaps;
+        }
+
+        private GameData.MapData RandomizeMapData(GameData.MapData mapData)
+        {
+            if (mapData == null)
+            {
+                mapData = new GameData.MapData();
+            }
+
+            mapData.Pos = mapData.Pos ?? new GameData.Position();
+
+            mapData.Pos.X = NextPositionCoordinate();
+            mapData.Pos.Y = NextHeightCoordinate();
+            mapData.Pos.Z = NextPositionCoordinate();
+            mapData.Angle = NextAngle();
+
+            mapData.Parent = -1;
+            mapData.Modes = 0;
+            return mapData;
+        }
+
+        private double NextPositionCoordinate() => Math.Round(Randomizer.NextDouble() * 500, 2);
+        private double NextHeightCoordinate() => Math.Round(40 + Randomizer.NextDouble() * 40, 2);
+        private double NextAngle() => Math.Round(Randomizer.NextDouble() * 360, 2);
 
         private void SyncJsonFromMap()
         {
@@ -731,19 +883,36 @@ namespace BlitzPatch
                 unitOnMaps = new GameData.UnitOnMaps()
             };
 
-            if (!TryEditUnit(newUnit, out var edited))
+            if (!TryEditUnit(newUnit, out var edited, out var quantity, out var randomizePositionsSelected, allowMultipleInstances: true))
             {
                 return;
             }
 
-            if (IsDuplicateUnitId(edited.idOnServer))
+            var usedIds = new HashSet<int>(unitBinding.Select(u => u.idOnServer));
+            var startId = NextAvailableIdFrom(edited.idOnServer > 0 ? edited.idOnServer : GetNextAvailableId(), usedIds);
+            var unitsToAdd = new List<GameData.Unit>();
+
+            for (int i = 0; i < quantity; i++)
             {
-                MessageBox.Show("Unit idOnServer must be unique.", "Add unit", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                var idForUnit = NextAvailableIdFrom(startId, usedIds);
+                var unitToAdd = CloneUnit(edited);
+                unitToAdd.idOnServer = idForUnit;
+                if (randomizePositionsSelected)
+                {
+                    unitToAdd.unitOnMaps = RandomizeUnitOnMaps(unitToAdd.unitOnMaps);
+                }
+
+                unitsToAdd.Add(unitToAdd);
+                usedIds.Add(idForUnit);
+                startId = idForUnit + 1;
             }
 
-            unitBinding.Add(edited);
-            currentUserMap.NextId = Math.Max(currentUserMap.NextId ?? 0, edited.idOnServer + 1);
+            foreach (var unit in unitsToAdd)
+            {
+                unitBinding.Add(unit);
+            }
+
+            currentUserMap.NextId = NextAvailableIdFrom(startId, usedIds);
             SyncJsonFromMap();
         }
 
@@ -761,7 +930,7 @@ namespace BlitzPatch
                 return;
             }
 
-            if (!TryEditUnit(CloneUnit(selected), out var edited))
+            if (!TryEditUnit(CloneUnit(selected), out var edited, out _, out _, allowMultipleInstances: false))
             {
                 return;
             }
