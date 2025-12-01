@@ -5,6 +5,7 @@ using System.Linq;
 using System.Collections.Generic;
 using System.Windows.Forms;
 using System.Text.Json;
+using System.Text;
 
 namespace BlitzPatch
 {
@@ -19,6 +20,7 @@ namespace BlitzPatch
         private List<Db.UserDataRecord> loadedRecords = new List<Db.UserDataRecord>();
         private string[] allUnits = GameData.AllUnitsDistinct;
         private static readonly Random Randomizer = new Random();
+        private static readonly IReadOnlyList<GameData.UserProgress.PvEMission> CanonicalMissions = BuildCanonicalMissions();
 
         private class FactionFilterOption
         {
@@ -56,6 +58,33 @@ namespace BlitzPatch
             SaveGameDirectory(textBox1.Text);
             var backupStatus = CreateBackup(textBox1.Text);
             SetStatus($"Opening unit editor... {backupStatus}");
+            LoadProfileAndShow(textBox1.Text);
+        }
+
+        private void landingPatchButton_Click(object sender, EventArgs e)
+        {
+            if (!IsValidGameDirectory(textBox1.Text, out var reason))
+            {
+                SetStatus(reason);
+                return;
+            }
+
+            SaveGameDirectory(textBox1.Text);
+            var backupStatus = CreateBackup(textBox1.Text);
+
+            if (!TryPatchMissions(textBox1.Text, out var patchStatus))
+            {
+                SetStatus($"{patchStatus} ({backupStatus})");
+                return;
+            }
+
+            if (!TryEnsureFactionsInMaps(textBox1.Text, out var mapStatus))
+            {
+                SetStatus($"{mapStatus} ({backupStatus})");
+                return;
+            }
+
+            SetStatus($"{patchStatus}; {mapStatus} ({backupStatus})");
             LoadProfileAndShow(textBox1.Text);
         }
 
@@ -781,6 +810,340 @@ namespace BlitzPatch
             return message ?? "No backup created.";
         }
 
+        private static IReadOnlyList<GameData.UserProgress.PvEMission> BuildCanonicalMissions()
+        {
+            var missions = new List<GameData.UserProgress.PvEMission>();
+
+            void AddRange(string campaignId, IEnumerable<string> missionIds)
+            {
+                foreach (var id in missionIds)
+                {
+                    missions.Add(new GameData.UserProgress.PvEMission
+                    {
+                        MissionId = id,
+                        CampaignId = campaignId,
+                        IsMainObjectivesCompleted = true,
+                        IsOptionalObjectivesCompleted = true,
+                        IsChallengesCompleted = true,
+                        MaxAchievedStars = 3
+                    });
+                }
+            }
+
+            AddRange(GameData.campaign_ald, GameData.mission_ald);
+            AddRange(GameData.campaign_sov, GameData.mission_sov);
+            AddRange(GameData.campaign_ger, GameData.mission_ger);
+
+            return missions;
+        }
+
+        private bool TryPatchMissions(string gameDirectory, out string status)
+        {
+            status = null;
+
+            if (!Db.TryLoadAllUserJson(gameDirectory, out var records, out var loadMessage))
+            {
+                status = loadMessage ?? "Could not load profile data.";
+                return false;
+            }
+
+            if (records == null || records.Count == 0)
+            {
+                status = "No documents found to patch maps.";
+                return false;
+            }
+
+            var progressRecords = (records ?? new List<Db.UserDataRecord>())
+                .Where(r => r.CollectionName == "1")
+                .ToList();
+
+            if (progressRecords.Count == 0)
+            {
+                status = "No collection \"1\" (UserProgress) documents found to patch.";
+                return false;
+            }
+
+            var patchedCount = 0;
+
+            foreach (var record in progressRecords)
+            {
+                if (!TryPatchMissionsInJson(record.JsonPayload, out var patchedJson, out var error))
+                {
+                    status = $"Failed to patch missions for record {record.DisplayName}: {error}";
+                    return false;
+                }
+
+                if (!Db.TrySaveUserJson(record, patchedJson, out var saveMessage))
+                {
+                    status = saveMessage ?? $"Failed to save patched record {record.DisplayName}.";
+                    return false;
+                }
+
+                record.JsonPayload = patchedJson;
+                patchedCount++;
+            }
+
+            status = $"Patched PvE missions for {patchedCount} profile(s).";
+            return patchedCount > 0;
+        }
+
+        private bool TryEnsureFactionsInMaps(string gameDirectory, out string status)
+        {
+            status = null;
+
+            if (!Db.TryLoadAllUserJson(gameDirectory, out var records, out var loadMessage))
+            {
+                status = loadMessage ?? "Could not load profile data.";
+                return false;
+            }
+
+            var mapRecords = (records ?? new List<Db.UserDataRecord>())
+                .Where(r => r.CollectionName == "2")
+                .ToList();
+
+            var existingFactions = new HashSet<int>(mapRecords.Where(r => r.UserFactionType.HasValue).Select(r => r.UserFactionType.Value));
+            var missing = new List<int>();
+            foreach (var faction in new[] { 0, 1, 2 })
+            {
+                if (!existingFactions.Contains(faction))
+                {
+                    missing.Add(faction);
+                }
+            }
+
+            if (missing.Count == 0)
+            {
+                status = "All faction maps already present.";
+                return true;
+            }
+
+            var inserted = 0;
+            foreach (var faction in missing)
+            {
+                var placeholderJson = BuildPlaceholderMapJson(faction);
+                if (!Db.TryInsertUserJson(mapRecords.FirstOrDefault()?.DatabasePath ?? records.First().DatabasePath, "2", placeholderJson, faction, out _, out var insertMessage))
+                {
+                    status = insertMessage ?? $"Failed to insert map for faction {faction}.";
+                    return false;
+                }
+
+                inserted++;
+            }
+
+            status = $"Added {inserted} missing faction map(s).";
+            return true;
+        }
+
+        private bool TryPatchMissionsInJson(string json, out string patchedJson, out string error)
+        {
+            patchedJson = null;
+            error = null;
+
+            try
+            {
+                using (var doc = JsonDocument.Parse(json))
+                {
+                    var existingMissions = ExtractExistingMissions(doc.RootElement);
+                    var mergedMissions = MergeMissionLists(existingMissions);
+
+                    using (var stream = new MemoryStream())
+                    using (var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
+                    {
+                        WritePatchedProfile(doc.RootElement, mergedMissions, writer);
+                        writer.Flush();
+                        patchedJson = Encoding.UTF8.GetString(stream.ToArray());
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        private List<GameData.UserProgress.PvEMission> ExtractExistingMissions(JsonElement root)
+        {
+            var missions = new List<GameData.UserProgress.PvEMission>();
+
+            if (root.TryGetProperty("PvEMissionProgress", out var missionArray) && missionArray.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var element in missionArray.EnumerateArray())
+                {
+                    try
+                    {
+                        var mission = JsonSerializer.Deserialize<GameData.UserProgress.PvEMission>(element.GetRawText(), new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+
+                        if (mission != null)
+                        {
+                            missions.Add(mission);
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore malformed mission rows; they will be replaced by canonical ones.
+                    }
+                }
+            }
+
+            return missions;
+        }
+
+        private List<GameData.UserProgress.PvEMission> MergeMissionLists(List<GameData.UserProgress.PvEMission> existing)
+        {
+            var merged = new List<GameData.UserProgress.PvEMission>();
+            var existingById = new Dictionary<string, GameData.UserProgress.PvEMission>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var mission in existing ?? Enumerable.Empty<GameData.UserProgress.PvEMission>())
+            {
+                if (string.IsNullOrWhiteSpace(mission?.MissionId))
+                {
+                    continue;
+                }
+
+                var normalized = NormalizeMission(mission);
+                if (existingById.ContainsKey(normalized.MissionId))
+                {
+                    continue;
+                }
+
+                existingById[normalized.MissionId] = normalized;
+                merged.Add(normalized);
+            }
+
+            foreach (var canonical in CanonicalMissions)
+            {
+                if (existingById.TryGetValue(canonical.MissionId, out var found))
+                {
+                    found.IsMainObjectivesCompleted = true;
+                    found.IsOptionalObjectivesCompleted = true;
+                    found.IsChallengesCompleted = true;
+                    found.MaxAchievedStars = Math.Max(found.MaxAchievedStars, canonical.MaxAchievedStars);
+
+                    if (string.IsNullOrWhiteSpace(found.CampaignId))
+                    {
+                        found.CampaignId = canonical.CampaignId;
+                    }
+                }
+                else
+                {
+                    merged.Add(CloneMission(canonical));
+                }
+            }
+
+            return merged;
+        }
+
+        private GameData.UserProgress.PvEMission NormalizeMission(GameData.UserProgress.PvEMission mission)
+        {
+            if (mission == null)
+            {
+                mission = new GameData.UserProgress.PvEMission();
+            }
+
+            mission.IsMainObjectivesCompleted = true;
+            mission.IsOptionalObjectivesCompleted = true;
+            mission.IsChallengesCompleted = true;
+            mission.MaxAchievedStars = Math.Max(mission.MaxAchievedStars, 3);
+
+            return mission;
+        }
+
+        private GameData.UserProgress.PvEMission CloneMission(GameData.UserProgress.PvEMission mission)
+        {
+            if (mission == null)
+            {
+                return new GameData.UserProgress.PvEMission();
+            }
+
+            return new GameData.UserProgress.PvEMission
+            {
+                MissionId = mission.MissionId,
+                CampaignId = mission.CampaignId,
+                IsMainObjectivesCompleted = mission.IsMainObjectivesCompleted,
+                IsOptionalObjectivesCompleted = mission.IsOptionalObjectivesCompleted,
+                IsChallengesCompleted = mission.IsChallengesCompleted,
+                MaxAchievedStars = mission.MaxAchievedStars
+            };
+        }
+
+        private void WritePatchedProfile(JsonElement root, List<GameData.UserProgress.PvEMission> missions, Utf8JsonWriter writer)
+        {
+            writer.WriteStartObject();
+            var wroteMissions = false;
+
+            foreach (var property in root.EnumerateObject())
+            {
+                if (property.NameEquals("PvEMissionProgress"))
+                {
+                    writer.WritePropertyName(property.Name);
+                    WriteMissionArray(missions, writer);
+                    wroteMissions = true;
+                }
+                else
+                {
+                    property.WriteTo(writer);
+                }
+            }
+
+            if (!wroteMissions)
+            {
+                writer.WritePropertyName("PvEMissionProgress");
+                WriteMissionArray(missions, writer);
+            }
+
+            writer.WriteEndObject();
+        }
+
+        private void WriteMissionArray(List<GameData.UserProgress.PvEMission> missions, Utf8JsonWriter writer)
+        {
+            writer.WriteStartArray();
+            foreach (var mission in missions)
+            {
+                JsonSerializer.Serialize(writer, mission);
+            }
+            writer.WriteEndArray();
+        }
+
+        private string BuildPlaceholderMapJson(int faction)
+        {
+            var map = new GameData.UserMapDocument
+            {
+                UserFactionType = faction,
+                NextId = 1,
+                Units = new List<GameData.Unit>(),
+                SupportsReserve = new List<GameData.Unit>()
+            };
+
+            var pool = GetUnitPoolForFaction(faction);
+            var usedIds = new HashSet<int>();
+            var count = Math.Min(6, pool.Length);
+
+            for (int i = 0; i < count; i++)
+            {
+                var unit = new GameData.Unit
+                {
+                    idOnServer = NextAvailableIdFrom(i + 1, usedIds),
+                    id = pool[Randomizer.Next(0, pool.Length)],
+                    exp = 0,
+                    expLvl = 0,
+                    unitOnMaps = new GameData.UnitOnMaps()
+                };
+
+                EnsureUnitDefaults(unit);
+                map.Units.Add(unit);
+                usedIds.Add(unit.idOnServer);
+            }
+
+            map.NextId = NextAvailableIdFrom(map.NextId ?? 1, usedIds);
+            return GameData.SerializeUserMap(map, pretty: true);
+        }
+
         private void reloadButton_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(textBox1.Text))
@@ -845,6 +1208,33 @@ namespace BlitzPatch
             else
             {
                 MessageBox.Show(message ?? "Export failed.", "Export JSON", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void exportLiteDbButton_Click(object sender, EventArgs e)
+        {
+            using (var dialog = new OpenFileDialog())
+            {
+                dialog.Title = "Select LiteDB (_a) file to export";
+                dialog.Filter = "LiteDB files|a_*;*.db;*.litedb;*.ldb|All files|*.*";
+                dialog.CheckFileExists = true;
+
+                if (dialog.ShowDialog(this) != DialogResult.OK || string.IsNullOrWhiteSpace(dialog.FileName))
+                {
+                    SetStatus("Export canceled.");
+                    return;
+                }
+
+                if (Db.TryExportLiteDbFileToJson(dialog.FileName, out var exportPath, out var message))
+                {
+                    MessageBox.Show(message, "Export JSON", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    SetStatus(message);
+                }
+                else
+                {
+                    MessageBox.Show(message ?? "Export failed.", "Export JSON", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    SetStatus(message ?? "Export failed.");
+                }
             }
         }
 

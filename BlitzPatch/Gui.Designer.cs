@@ -29,19 +29,21 @@ namespace BlitzPatch
         private void InitializeComponent()
         {
             this.landingPanel = new System.Windows.Forms.Panel();
+            this.exportLiteDbButton = new System.Windows.Forms.Button();
+            this.landingPatchButton = new System.Windows.Forms.Button();
             this.button1 = new System.Windows.Forms.Button();
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.label1 = new System.Windows.Forms.Label();
             this.landingStartButton = new System.Windows.Forms.Button();
             this.landingTitleLabel = new System.Windows.Forms.Label();
             this.unitPanel = new System.Windows.Forms.Panel();
-            this.saveButton = new System.Windows.Forms.Button();
             this.saveAsButton = new System.Windows.Forms.Button();
+            this.factionFilterLabel = new System.Windows.Forms.Label();
+            this.factionFilterCombo = new System.Windows.Forms.ComboBox();
+            this.exportJsonButton = new System.Windows.Forms.Button();
+            this.saveButton = new System.Windows.Forms.Button();
             this.reloadButton = new System.Windows.Forms.Button();
             this.backButton = new System.Windows.Forms.Button();
-            this.exportJsonButton = new System.Windows.Forms.Button();
-            this.factionFilterCombo = new System.Windows.Forms.ComboBox();
-            this.factionFilterLabel = new System.Windows.Forms.Label();
             this.editorTabControl = new System.Windows.Forms.TabControl();
             this.jsonTabPage = new System.Windows.Forms.TabPage();
             this.jsonEditorTextBox = new System.Windows.Forms.TextBox();
@@ -52,9 +54,9 @@ namespace BlitzPatch
             this.addUnitButton = new System.Windows.Forms.Button();
             this.nextIdLabel = new System.Windows.Forms.Label();
             this.unitsDataGridView = new System.Windows.Forms.DataGridView();
+            this.listBoxRecords = new System.Windows.Forms.ListBox();
             this.summaryTextBox = new System.Windows.Forms.TextBox();
             this.profileSourceLabel = new System.Windows.Forms.Label();
-            this.listBoxRecords = new System.Windows.Forms.ListBox();
             this.landingPanel.SuspendLayout();
             this.unitPanel.SuspendLayout();
             this.editorTabControl.SuspendLayout();
@@ -65,6 +67,9 @@ namespace BlitzPatch
             // 
             // landingPanel
             // 
+            this.landingPanel.Controls.Add(this.unitPanel);
+            this.landingPanel.Controls.Add(this.exportLiteDbButton);
+            this.landingPanel.Controls.Add(this.landingPatchButton);
             this.landingPanel.Controls.Add(this.button1);
             this.landingPanel.Controls.Add(this.textBox1);
             this.landingPanel.Controls.Add(this.label1);
@@ -75,6 +80,26 @@ namespace BlitzPatch
             this.landingPanel.Name = "landingPanel";
             this.landingPanel.Size = new System.Drawing.Size(640, 480);
             this.landingPanel.TabIndex = 0;
+            // 
+            // exportLiteDbButton
+            // 
+            this.exportLiteDbButton.Location = new System.Drawing.Point(3, 280);
+            this.exportLiteDbButton.Name = "exportLiteDbButton";
+            this.exportLiteDbButton.Size = new System.Drawing.Size(234, 24);
+            this.exportLiteDbButton.TabIndex = 5;
+            this.exportLiteDbButton.Text = "Export LiteDB (_a) to JSON...";
+            this.exportLiteDbButton.UseVisualStyleBackColor = true;
+            this.exportLiteDbButton.Click += new System.EventHandler(this.exportLiteDbButton_Click);
+            // 
+            // landingPatchButton
+            // 
+            this.landingPatchButton.Location = new System.Drawing.Point(393, 242);
+            this.landingPatchButton.Name = "landingPatchButton";
+            this.landingPatchButton.Size = new System.Drawing.Size(96, 24);
+            this.landingPatchButton.TabIndex = 6;
+            this.landingPatchButton.Text = "Load && Patch";
+            this.landingPatchButton.UseVisualStyleBackColor = true;
+            this.landingPatchButton.Click += new System.EventHandler(this.landingPatchButton_Click);
             // 
             // button1
             // 
@@ -120,7 +145,7 @@ namespace BlitzPatch
             this.landingTitleLabel.Name = "landingTitleLabel";
             this.landingTitleLabel.Size = new System.Drawing.Size(203, 30);
             this.landingTitleLabel.TabIndex = 0;
-            this.landingTitleLabel.Text = "BlitzPatch (0.00.0)";
+            this.landingTitleLabel.Text = "BlitzPatch (0.00.1)";
             // 
             // unitPanel
             // 
@@ -142,34 +167,74 @@ namespace BlitzPatch
             this.unitPanel.TabIndex = 2;
             this.unitPanel.Visible = false;
             // 
-            // profileSourceLabel
+            // saveAsButton
             // 
-            this.profileSourceLabel.AutoSize = true;
-            this.profileSourceLabel.Location = new System.Drawing.Point(10, 10);
-            this.profileSourceLabel.Name = "profileSourceLabel";
-            this.profileSourceLabel.Size = new System.Drawing.Size(117, 13);
-            this.profileSourceLabel.TabIndex = 0;
-            this.profileSourceLabel.Text = "No profile loaded yet.";
+            this.saveAsButton.Location = new System.Drawing.Point(432, 420);
+            this.saveAsButton.Name = "saveAsButton";
+            this.saveAsButton.Size = new System.Drawing.Size(95, 23);
+            this.saveAsButton.TabIndex = 8;
+            this.saveAsButton.Text = "Save As...";
+            this.saveAsButton.UseVisualStyleBackColor = true;
+            this.saveAsButton.Click += new System.EventHandler(this.saveAsButton_Click);
             // 
-            // summaryTextBox
+            // factionFilterLabel
             // 
-            this.summaryTextBox.Location = new System.Drawing.Point(249, 39);
-            this.summaryTextBox.Multiline = true;
-            this.summaryTextBox.Name = "summaryTextBox";
-            this.summaryTextBox.ReadOnly = true;
-            this.summaryTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.summaryTextBox.Size = new System.Drawing.Size(378, 108);
-            this.summaryTextBox.TabIndex = 3;
+            this.factionFilterLabel.AutoSize = true;
+            this.factionFilterLabel.Location = new System.Drawing.Point(249, 10);
+            this.factionFilterLabel.Name = "factionFilterLabel";
+            this.factionFilterLabel.Size = new System.Drawing.Size(88, 13);
+            this.factionFilterLabel.TabIndex = 11;
+            this.factionFilterLabel.Text = "UserFactionType";
             // 
-            // listBoxRecords
+            // factionFilterCombo
             // 
-            this.listBoxRecords.FormattingEnabled = true;
-            this.listBoxRecords.HorizontalScrollbar = true;
-            this.listBoxRecords.Location = new System.Drawing.Point(13, 39);
-            this.listBoxRecords.Name = "listBoxRecords";
-            this.listBoxRecords.Size = new System.Drawing.Size(230, 108);
-            this.listBoxRecords.TabIndex = 4;
-            this.listBoxRecords.SelectedIndexChanged += new System.EventHandler(this.listBoxRecords_SelectedIndexChanged);
+            this.factionFilterCombo.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.factionFilterCombo.FormattingEnabled = true;
+            this.factionFilterCombo.Location = new System.Drawing.Point(345, 7);
+            this.factionFilterCombo.Name = "factionFilterCombo";
+            this.factionFilterCombo.Size = new System.Drawing.Size(167, 21);
+            this.factionFilterCombo.TabIndex = 2;
+            this.factionFilterCombo.SelectedIndexChanged += new System.EventHandler(this.factionFilterCombo_SelectedIndexChanged);
+            // 
+            // exportJsonButton
+            // 
+            this.exportJsonButton.Location = new System.Drawing.Point(250, 420);
+            this.exportJsonButton.Name = "exportJsonButton";
+            this.exportJsonButton.Size = new System.Drawing.Size(90, 23);
+            this.exportJsonButton.TabIndex = 6;
+            this.exportJsonButton.Text = "Export JSON";
+            this.exportJsonButton.UseVisualStyleBackColor = true;
+            this.exportJsonButton.Click += new System.EventHandler(this.exportJsonButton_Click);
+            // 
+            // saveButton
+            // 
+            this.saveButton.Location = new System.Drawing.Point(533, 420);
+            this.saveButton.Name = "saveButton";
+            this.saveButton.Size = new System.Drawing.Size(94, 23);
+            this.saveButton.TabIndex = 9;
+            this.saveButton.Text = "Save to LiteDB";
+            this.saveButton.UseVisualStyleBackColor = true;
+            this.saveButton.Click += new System.EventHandler(this.saveButton_Click);
+            // 
+            // reloadButton
+            // 
+            this.reloadButton.Location = new System.Drawing.Point(346, 420);
+            this.reloadButton.Name = "reloadButton";
+            this.reloadButton.Size = new System.Drawing.Size(80, 23);
+            this.reloadButton.TabIndex = 7;
+            this.reloadButton.Text = "Reload";
+            this.reloadButton.UseVisualStyleBackColor = true;
+            this.reloadButton.Click += new System.EventHandler(this.reloadButton_Click);
+            // 
+            // backButton
+            // 
+            this.backButton.Location = new System.Drawing.Point(13, 420);
+            this.backButton.Name = "backButton";
+            this.backButton.Size = new System.Drawing.Size(75, 23);
+            this.backButton.TabIndex = 4;
+            this.backButton.Text = "Back";
+            this.backButton.UseVisualStyleBackColor = true;
+            this.backButton.Click += new System.EventHandler(this.backButton_Click);
             // 
             // editorTabControl
             // 
@@ -201,7 +266,6 @@ namespace BlitzPatch
             this.jsonEditorTextBox.Multiline = true;
             this.jsonEditorTextBox.Name = "jsonEditorTextBox";
             this.jsonEditorTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Both;
-            this.jsonEditorTextBox.ShortcutsEnabled = true;
             this.jsonEditorTextBox.Size = new System.Drawing.Size(600, 218);
             this.jsonEditorTextBox.TabIndex = 0;
             this.jsonEditorTextBox.WordWrap = false;
@@ -267,7 +331,7 @@ namespace BlitzPatch
             this.nextIdLabel.AutoSize = true;
             this.nextIdLabel.Location = new System.Drawing.Point(2, 177);
             this.nextIdLabel.Name = "nextIdLabel";
-            this.nextIdLabel.Size = new System.Drawing.Size(92, 13);
+            this.nextIdLabel.Size = new System.Drawing.Size(86, 13);
             this.nextIdLabel.TabIndex = 1;
             this.nextIdLabel.Text = "Next unit id: N/A";
             // 
@@ -283,86 +347,45 @@ namespace BlitzPatch
             this.unitsDataGridView.Size = new System.Drawing.Size(595, 166);
             this.unitsDataGridView.TabIndex = 0;
             // 
-            // backButton
+            // listBoxRecords
             // 
-            this.backButton.Location = new System.Drawing.Point(13, 420);
-            this.backButton.Name = "backButton";
-            this.backButton.Size = new System.Drawing.Size(75, 23);
-            this.backButton.TabIndex = 4;
-            this.backButton.Text = "Back";
-            this.backButton.UseVisualStyleBackColor = true;
-            this.backButton.Click += new System.EventHandler(this.backButton_Click);
+            this.listBoxRecords.FormattingEnabled = true;
+            this.listBoxRecords.HorizontalScrollbar = true;
+            this.listBoxRecords.Location = new System.Drawing.Point(13, 39);
+            this.listBoxRecords.Name = "listBoxRecords";
+            this.listBoxRecords.Size = new System.Drawing.Size(230, 108);
+            this.listBoxRecords.TabIndex = 4;
+            this.listBoxRecords.SelectedIndexChanged += new System.EventHandler(this.listBoxRecords_SelectedIndexChanged);
             // 
-            // reloadButton
+            // summaryTextBox
             // 
-            this.reloadButton.Location = new System.Drawing.Point(346, 420);
-            this.reloadButton.Name = "reloadButton";
-            this.reloadButton.Size = new System.Drawing.Size(80, 23);
-            this.reloadButton.TabIndex = 7;
-            this.reloadButton.Text = "Reload";
-            this.reloadButton.UseVisualStyleBackColor = true;
-            this.reloadButton.Click += new System.EventHandler(this.reloadButton_Click);
+            this.summaryTextBox.Location = new System.Drawing.Point(249, 39);
+            this.summaryTextBox.Multiline = true;
+            this.summaryTextBox.Name = "summaryTextBox";
+            this.summaryTextBox.ReadOnly = true;
+            this.summaryTextBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.summaryTextBox.Size = new System.Drawing.Size(378, 108);
+            this.summaryTextBox.TabIndex = 3;
             // 
-            // saveButton
+            // profileSourceLabel
             // 
-            this.saveButton.Location = new System.Drawing.Point(533, 420);
-            this.saveButton.Name = "saveButton";
-            this.saveButton.Size = new System.Drawing.Size(94, 23);
-            this.saveButton.TabIndex = 9;
-            this.saveButton.Text = "Save to LiteDB";
-            this.saveButton.UseVisualStyleBackColor = true;
-            this.saveButton.Click += new System.EventHandler(this.saveButton_Click);
-            // 
-            // saveAsButton
-            // 
-            this.saveAsButton.Location = new System.Drawing.Point(432, 420);
-            this.saveAsButton.Name = "saveAsButton";
-            this.saveAsButton.Size = new System.Drawing.Size(95, 23);
-            this.saveAsButton.TabIndex = 8;
-            this.saveAsButton.Text = "Save As...";
-            this.saveAsButton.UseVisualStyleBackColor = true;
-            this.saveAsButton.Click += new System.EventHandler(this.saveAsButton_Click);
-            // 
-            // exportJsonButton
-            // 
-            this.exportJsonButton.Location = new System.Drawing.Point(250, 420);
-            this.exportJsonButton.Name = "exportJsonButton";
-            this.exportJsonButton.Size = new System.Drawing.Size(90, 23);
-            this.exportJsonButton.TabIndex = 6;
-            this.exportJsonButton.Text = "Export JSON";
-            this.exportJsonButton.UseVisualStyleBackColor = true;
-            this.exportJsonButton.Click += new System.EventHandler(this.exportJsonButton_Click);
-            // 
-            // factionFilterCombo
-            // 
-            this.factionFilterCombo.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.factionFilterCombo.FormattingEnabled = true;
-            this.factionFilterCombo.Location = new System.Drawing.Point(345, 7);
-            this.factionFilterCombo.Name = "factionFilterCombo";
-            this.factionFilterCombo.Size = new System.Drawing.Size(167, 21);
-            this.factionFilterCombo.TabIndex = 2;
-            this.factionFilterCombo.SelectedIndexChanged += new System.EventHandler(this.factionFilterCombo_SelectedIndexChanged);
-            // 
-            // factionFilterLabel
-            // 
-            this.factionFilterLabel.AutoSize = true;
-            this.factionFilterLabel.Location = new System.Drawing.Point(249, 10);
-            this.factionFilterLabel.Name = "factionFilterLabel";
-            this.factionFilterLabel.Size = new System.Drawing.Size(90, 13);
-            this.factionFilterLabel.TabIndex = 11;
-            this.factionFilterLabel.Text = "UserFactionType";
+            this.profileSourceLabel.AutoSize = true;
+            this.profileSourceLabel.Location = new System.Drawing.Point(10, 10);
+            this.profileSourceLabel.Name = "profileSourceLabel";
+            this.profileSourceLabel.Size = new System.Drawing.Size(107, 13);
+            this.profileSourceLabel.TabIndex = 0;
+            this.profileSourceLabel.Text = "No profile loaded yet.";
             // 
             // Gui
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(640, 480);
-            this.Controls.Add(this.unitPanel);
             this.Controls.Add(this.landingPanel);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.MaximizeBox = false;
-            this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             this.Name = "Gui";
+            this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "BlitzPatch";
             this.Load += new System.EventHandler(this.Gui_Load);
@@ -409,5 +432,7 @@ namespace BlitzPatch
         private System.Windows.Forms.Button addUnitButton;
         private System.Windows.Forms.Label nextIdLabel;
         private System.Windows.Forms.DataGridView unitsDataGridView;
+        private System.Windows.Forms.Button exportLiteDbButton;
+        private System.Windows.Forms.Button landingPatchButton;
     }
 }
