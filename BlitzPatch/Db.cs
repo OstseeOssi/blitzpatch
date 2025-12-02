@@ -372,6 +372,77 @@ namespace BlitzPatch
             }
         }
 
+        public static bool TryExportLiteDbFileToJson(string databasePath, out string exportPath, out string message)
+        {
+            exportPath = null;
+            message = null;
+
+            if (string.IsNullOrWhiteSpace(databasePath) || !File.Exists(databasePath))
+            {
+                message = "LiteDB file path is invalid.";
+                return false;
+            }
+
+            var directory = Path.GetDirectoryName(databasePath);
+            if (string.IsNullOrWhiteSpace(directory))
+            {
+                message = "Could not determine database directory.";
+                return false;
+            }
+
+            var exportDirectory = Path.Combine(directory, "blitzpatchdata");
+            Directory.CreateDirectory(exportDirectory);
+
+            var timestamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
+            exportPath = Path.Combine(exportDirectory, $"a_export_{timestamp}.json");
+
+            try
+            {
+                using (var db = new LiteDatabase(databasePath))
+                using (var writer = new StreamWriter(exportPath, false, new UTF8Encoding(false)))
+                {
+                    var collections = db.GetCollectionNames()
+                                        .OrderBy(n => n)
+                                        .ToList();
+
+                    writer.WriteLine("{");
+
+                    for (int i = 0; i < collections.Count; i++)
+                    {
+                        var name = collections[i];
+                        var col = db.GetCollection(name);
+
+                        writer.WriteLine($"  \"{name}\": [");
+
+                        bool firstDoc = true;
+                        foreach (var doc in col.FindAll())
+                        {
+                            if (!firstDoc) writer.WriteLine(",");
+                            var json = JsonSerializer.Serialize(doc, pretty: true, writeBinary: false);
+                            writer.Write(IndentJson(json, "    "));
+                            firstDoc = false;
+                        }
+
+                        writer.WriteLine();
+                        writer.Write("  ]");
+                        if (i < collections.Count - 1) writer.Write(",");
+                        writer.WriteLine();
+                    }
+
+                    writer.WriteLine("}");
+                }
+
+                message = $"Exported to {exportPath}";
+                return true;
+            }
+            catch (Exception ex)
+            {
+                message = $"Export failed: {ex.Message}";
+                exportPath = null;
+                return false;
+            }
+        }
+
         public static bool TryBackupUserDatabase(string gameDirectory, out string backupPath, out string message)
         {
             backupPath = null;
@@ -445,6 +516,58 @@ namespace BlitzPatch
             }
 
             return null;
+        }
+
+        public static bool TryInsertUserJson(string databasePath, string collectionName, string json, int? userFactionType, out UserDataRecord record, out string message)
+        {
+            record = null;
+            message = null;
+
+            if (string.IsNullOrWhiteSpace(databasePath) || string.IsNullOrWhiteSpace(collectionName) || string.IsNullOrWhiteSpace(json))
+            {
+                message = "Insert failed: missing path, collection, or JSON.";
+                return false;
+            }
+
+            try
+            {
+                using (var db = new LiteDatabase(databasePath))
+                {
+                    var col = db.GetCollection(collectionName);
+
+                    var doc = new BsonDocument
+                    {
+                        ["j_"] = json
+                    };
+
+                    if (userFactionType.HasValue)
+                    {
+                        doc["UserFactionType"] = userFactionType.Value;
+                    }
+
+                    col.Insert(doc);
+
+                    var id = doc.ContainsKey("_id") ? doc["_id"] : BsonValue.Null;
+
+                    record = new UserDataRecord
+                    {
+                        DatabasePath = databasePath,
+                        CollectionName = collectionName,
+                        DocumentId = id,
+                        JsonPayload = json,
+                        UserFactionType = userFactionType
+                    };
+
+                    message = $"Inserted new document into collection '{collectionName}'.";
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                message = $"Insert failed: {ex.Message}";
+                record = null;
+                return false;
+            }
         }
 
         private static string IndentJson(string json, string indent)
